@@ -106,7 +106,29 @@ app.get('/api/auth/test', (req, res) => {
 });
 
 // ===========================================
-// 8. 404 HANDLER - Route Not Found
+// 8. PROPERTY ROUTES
+// ===========================================
+
+/**
+ * All property routes are defined in propertyRoutes.js
+ * They are mounted under /api/properties prefix
+ * 
+ * Available Routes:
+ * GET    /api/properties           - Get all properties (public)
+ * GET    /api/properties/:id       - Get single property (public)
+ * POST   /api/properties           - Create property (owner/admin)
+ * PUT    /api/properties/:id       - Update property (owner/admin)
+ * POST   /api/properties/:id/publish  - Publish property (owner/admin)
+ * DELETE /api/properties/:id       - Soft delete property (owner/admin)
+ * POST   /api/properties/:id/restore  - Restore property (admin only)
+ */
+
+// Import property routes
+const propertyRoutes = require('./src/routes/propertyRoutes');
+app.use('/api/properties', propertyRoutes); // Mount routes under /api/properties
+
+// ===========================================
+// 9. 404 HANDLER - Route Not Found
 // ===========================================
 
 /**
@@ -122,7 +144,7 @@ app.use((req, res) => {
 });
 
 // ===========================================
-// 9. ERROR HANDLER - Catch All Errors
+// 10. ERROR HANDLER - Catch All Errors
 // ===========================================
 
 /**
@@ -152,7 +174,7 @@ app.use((err, req, res, next) => {
 });
 
 // ===========================================
-// 10. START THE SERVER
+// 11. START THE SERVER
 // ===========================================
 
 const PORT = process.env.PORT || 5000; // Use port from .env or default to 5000
@@ -165,12 +187,12 @@ app.listen(PORT, () => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📊 Health: http://localhost:${PORT}/api/health`);
   console.log(`🔐 Auth: http://localhost:${PORT}/api/auth`);
-  console.log(`🧪 Test: http://localhost:${PORT}/api/auth/test`);
+  console.log(`🏠 Properties: http://localhost:${PORT}/api/properties`);
   console.log('====================================');
 });
 
 // ===========================================
-// 11. GRACEFUL SHUTDOWN
+// 12. GRACEFUL SHUTDOWN
 // ===========================================
 
 /**

@@ -147,6 +147,43 @@ const authorize = (...roles) => {
     next();
   };
 };
+// ===========================================
+// OPTIONAL AUTH - Try to authenticate but don't require it
+// ===========================================
+/**
+ * Purpose: Optional authentication - attaches user if token is valid, but doesn't require it
+ * Usage: For routes that work for both authenticated and unauthenticated users
+ */
+const optionalAuth = async (req, res, next) => {
+  try {
+    let token;
+    
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+    
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = await User.findById(decoded.id).select('-password');
+        console.log('🔓 Optional Auth - User found:', req.user ? req.user.email : 'Not found');
+      } catch (error) {
+        // Token is invalid, but we don't care - just continue as unauthenticated
+        console.log('🔓 Optional Auth - Invalid token, continuing as public');
+        req.user = null;
+      }
+    } else {
+      console.log('🔓 Optional Auth - No token, continuing as public');
+      req.user = null;
+    }
+    
+    next();
+  } catch (error) {
+    // If anything goes wrong, just continue as unauthenticated
+    req.user = null;
+    next();
+  }
+};
 
 // ===========================================
 // EXPORT MIDDLEWARE
@@ -154,5 +191,6 @@ const authorize = (...roles) => {
 
 module.exports = {
   protect,    // For verifying JWT tokens
-  authorize   // For role-based access control
+  authorize,   // For role-based access control
+  optionalAuth // For optional authentication
 };
