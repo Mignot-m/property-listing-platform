@@ -128,7 +128,26 @@ const propertyRoutes = require('./src/routes/propertyRoutes');
 app.use('/api/properties', propertyRoutes); // Mount routes under /api/properties
 
 // ===========================================
-// 9. 404 HANDLER - Route Not Found
+// 9. FAVORITES ROUTES
+// ===========================================
+
+/**
+ * All favorite routes are defined in favoriteRoutes.js
+ * They are mounted under /api/favorites prefix
+ * 
+ * Available Routes:
+ * GET    /api/favorites           - Get all favorites (private)
+ * GET    /api/favorites/check/:id - Check if favorited (private)
+ * POST   /api/favorites/:id       - Add to favorites (private)
+ * DELETE /api/favorites/:id       - Remove from favorites (private)
+ */
+
+// Import favorite routes
+const favoriteRoutes = require('./src/routes/favoriteRoutes');
+app.use('/api/favorites', favoriteRoutes); // Mount routes under /api/favorites
+
+// ===========================================
+// 10. 404 HANDLER - Route Not Found
 // ===========================================
 
 /**
@@ -144,7 +163,7 @@ app.use((req, res) => {
 });
 
 // ===========================================
-// 10. ERROR HANDLER - Catch All Errors
+// 11. ERROR HANDLER - Catch All Errors
 // ===========================================
 
 /**
@@ -174,7 +193,7 @@ app.use((err, req, res, next) => {
 });
 
 // ===========================================
-// 11. START THE SERVER
+// 12. START THE SERVER
 // ===========================================
 
 const PORT = process.env.PORT || 5000; // Use port from .env or default to 5000
@@ -188,11 +207,12 @@ app.listen(PORT, () => {
   console.log(`📊 Health: http://localhost:${PORT}/api/health`);
   console.log(`🔐 Auth: http://localhost:${PORT}/api/auth`);
   console.log(`🏠 Properties: http://localhost:${PORT}/api/properties`);
+  console.log(`⭐ Favorites: http://localhost:${PORT}/api/favorites`);
   console.log('====================================');
 });
 
 // ===========================================
-// 12. GRACEFUL SHUTDOWN
+// 13. GRACEFUL SHUTDOWN
 // ===========================================
 
 /**

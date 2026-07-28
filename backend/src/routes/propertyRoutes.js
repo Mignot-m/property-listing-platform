@@ -17,6 +17,7 @@ const {
   restoreProperty
 } = require('../controllers/propertyController');
 const { protect, authorize, optionalAuth } = require('../middleware/auth');
+const { upload, handleMulterError } = require('../middleware/upload');
 
 // ===========================================
 // PUBLIC ROUTES (with optional auth)
@@ -26,7 +27,6 @@ const { protect, authorize, optionalAuth } = require('../middleware/auth');
  * GET /api/properties
  * Purpose: Get all properties with filtering
  * Access: Public (with optional auth for owners to see drafts)
- * Query: page, limit, location, minPrice, maxPrice, status
  */
 router.get('/', optionalAuth, getProperties);
 
@@ -43,17 +43,29 @@ router.get('/:id', optionalAuth, getProperty);
 
 /**
  * POST /api/properties
- * Purpose: Create a new property
+ * Purpose: Create a new property with image upload
  * Access: Private (Owner or Admin only)
  */
-router.post('/', protect, authorize('owner', 'admin'), createProperty);
+router.post(
+  '/',
+  protect,
+  authorize('owner', 'admin'),
+  upload.array('images', 10),
+  createProperty
+);
 
 /**
  * PUT /api/properties/:id
- * Purpose: Update a property (draft only)
+ * Purpose: Update a property with image upload (draft only)
  * Access: Private (Owner or Admin)
  */
-router.put('/:id', protect, authorize('owner', 'admin'), updateProperty);
+router.put(
+  '/:id',
+  protect,
+  authorize('owner', 'admin'),
+  upload.array('images', 10),
+  updateProperty
+);
 
 /**
  * POST /api/properties/:id/publish
@@ -75,5 +87,10 @@ router.delete('/:id', protect, authorize('owner', 'admin'), deleteProperty);
  * Access: Private (Admin only)
  */
 router.post('/:id/restore', protect, authorize('admin'), restoreProperty);
+
+// ===========================================
+// MULTER ERROR HANDLER
+// ===========================================
+router.use(handleMulterError);
 
 module.exports = router;

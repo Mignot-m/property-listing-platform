@@ -7,6 +7,7 @@
 
 const Property = require('../models/Properties');
 const { AppError } = require('../middleware/errorHandler');
+const cloudinaryService = require('../services/cloudinary');
 
 // ===========================================
 // 1. CREATE PROPERTY
@@ -26,6 +27,9 @@ const { AppError } = require('../middleware/errorHandler');
  *   status: "draft" // optional, defaults to draft
  * }
  */
+// ===========================================
+// 1. CREATE PROPERTY (WITH IMAGE UPLOAD)
+// ===========================================
 const createProperty = async (req, res, next) => {
   try {
     // Only owners and admins can create properties
@@ -36,8 +40,25 @@ const createProperty = async (req, res, next) => {
       });
     }
 
+    // Check if images are uploaded
+    let imageUrls = [];
+    if (req.files && req.files.length > 0) {
+      // Upload images to Cloudinary
+      imageUrls = await cloudinaryService.uploadMultipleImages(req.files, 'properties');
+    }
+
+    // If images were provided in the body as URLs (fallback)
+    if (req.body.images && !req.files) {
+      imageUrls = JSON.parse(req.body.images);
+    }
+
     const propertyData = {
-      ...req.body,
+      title: req.body.title,
+      description: req.body.description,
+      location: req.body.location,
+      price: parseFloat(req.body.price),
+      images: imageUrls,
+      status: req.body.status || 'draft',
       owner: req.user.id
     };
 
@@ -236,6 +257,9 @@ const getProperty = async (req, res, next) => {
  * Purpose: Update a property (Draft only)
  * Access: Private (Owner or Admin)
  */
+// ===========================================
+// 4. UPDATE PROPERTY (WITH IMAGE UPLOAD)
+// ===========================================
 const updateProperty = async (req, res, next) => {
   try {
     let property = await Property.findById(req.params.id);
@@ -263,9 +287,35 @@ const updateProperty = async (req, res, next) => {
       });
     }
 
+    // Prepare update data
+    const updateData = {
+      title: req.body.title || property.title,
+      description: req.body.description || property.description,
+      location: req.body.location || property.location,
+      price: req.body.price ? parseFloat(req.body.price) : property.price,
+      status: req.body.status || property.status
+    };
+
+    // Handle image updates
+    if (req.files && req.files.length > 0) {
+      // Upload new images to Cloudinary
+      const newImages = await cloudinaryService.uploadMultipleImages(req.files, 'properties');
+      
+      // Delete old images from Cloudinary (optional)
+      if (property.images && property.images.length > 0) {
+        await cloudinaryService.deleteMultipleImages(property.images);
+      }
+      
+      updateData.images = newImages;
+    } else if (req.body.images) {
+      updateData.images = JSON.parse(req.body.images);
+    } else {
+      updateData.images = property.images;
+    }
+
     property = await Property.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       {
         new: true,
         runValidators: true
@@ -359,6 +409,9 @@ const publishProperty = async (req, res, next) => {
  * Purpose: Soft delete a property (Owner or Admin only)
  * Access: Private (Owner or Admin)
  */
+// ===========================================
+// 6. DELETE PROPERTY (Soft Delete with Image Cleanup)
+// ===========================================
 const deleteProperty = async (req, res, next) => {
   try {
     const property = await Property.findById(req.params.id);
@@ -376,6 +429,11 @@ const deleteProperty = async (req, res, next) => {
         success: false,
         message: 'Not authorized to delete this property'
       });
+    }
+
+    // Delete images from Cloudinary
+    if (property.images && property.images.length > 0) {
+      await cloudinaryService.deleteMultipleImages(property.images);
     }
 
     // Soft delete
