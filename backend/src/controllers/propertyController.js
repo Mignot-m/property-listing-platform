@@ -10,24 +10,6 @@ const { AppError } = require('../middleware/errorHandler');
 const cloudinaryService = require('../services/cloudinary');
 
 // ===========================================
-// 1. CREATE PROPERTY
-// ===========================================
-/**
- * POST /api/properties
- * Purpose: Create a new property (Owner or Admin only)
- * Access: Private (owner, admin)
- * 
- * Request Body:
- * {
- *   title: "Beautiful Villa",
- *   description: "A beautiful villa with pool",
- *   location: "Addis Ababa, Ethiopia",
- *   price: 5000000,
- *   images: ["https://example.com/image1.jpg"],
- *   status: "draft" // optional, defaults to draft
- * }
- */
-// ===========================================
 // 1. CREATE PROPERTY (WITH IMAGE UPLOAD)
 // ===========================================
 const createProperty = async (req, res, next) => {
@@ -75,7 +57,7 @@ const createProperty = async (req, res, next) => {
 };
 
 // ===========================================
-// 2. GET ALL PROPERTIES
+// 2. GET ALL PROPERTIES (UPDATED)
 // ===========================================
 /**
  * GET /api/properties
@@ -89,22 +71,7 @@ const createProperty = async (req, res, next) => {
  * - minPrice: 100000
  * - maxPrice: 1000000
  * - status: "published" (user sees only published, admin sees all)
- */
-// ===========================================
-// 2. GET ALL PROPERTIES
-// ===========================================
-/**
- * GET /api/properties
- * Purpose: Get all properties with pagination and filtering
- * Access: Public (all roles)
- * 
- * Query Parameters:
- * - page: 1 (default)
- * - limit: 10 (default)
- * - location: "Addis Ababa"
- * - minPrice: 100000
- * - maxPrice: 1000000
- * - status: "published" (user sees only published, admin sees all)
+ * - includeDeleted: "true" (admin only - shows deleted properties)
  */
 const getProperties = async (req, res, next) => {
   try {
@@ -122,8 +89,16 @@ const getProperties = async (req, res, next) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
+    // ✅ Check if we should include deleted properties (admin only)
+    const includeDeleted = req.query.includeDeleted === 'true';
+    
     // Build filter
-    const filter = { deletedAt: null };
+    const filter = {};
+
+    // ✅ If not including deleted, filter out deleted properties
+    if (!includeDeleted) {
+      filter.deletedAt = null;
+    }
 
     // Get user role from request (if authenticated)
     const userRole = req.user ? req.user.role : null;
@@ -131,6 +106,7 @@ const getProperties = async (req, res, next) => {
 
     console.log('📌 User role:', userRole);
     console.log('📌 User ID:', userId);
+    console.log('📌 Include deleted:', includeDeleted);
 
     // If user is NOT authenticated OR is regular user
     if (!req.user || userRole === 'user') {
@@ -164,7 +140,6 @@ const getProperties = async (req, res, next) => {
       if (userRole === 'admin') {
         filter.status = req.query.status;
       } else if (userRole === 'owner') {
-        // When owner filters by status, only affect their own properties
         filter.owner = userId;
         filter.status = req.query.status;
       }
@@ -249,14 +224,6 @@ const getProperty = async (req, res, next) => {
   }
 };
 
-// ===========================================
-// 4. UPDATE PROPERTY
-// ===========================================
-/**
- * PUT /api/properties/:id
- * Purpose: Update a property (Draft only)
- * Access: Private (Owner or Admin)
- */
 // ===========================================
 // 4. UPDATE PROPERTY (WITH IMAGE UPLOAD)
 // ===========================================
@@ -402,14 +369,6 @@ const publishProperty = async (req, res, next) => {
 };
 
 // ===========================================
-// 6. DELETE PROPERTY (Soft Delete)
-// ===========================================
-/**
- * DELETE /api/properties/:id
- * Purpose: Soft delete a property (Owner or Admin only)
- * Access: Private (Owner or Admin)
- */
-// ===========================================
 // 6. DELETE PROPERTY (Soft Delete with Image Cleanup)
 // ===========================================
 const deleteProperty = async (req, res, next) => {
@@ -451,28 +410,32 @@ const deleteProperty = async (req, res, next) => {
 };
 
 // ===========================================
-// 7. RESTORE PROPERTY (Admin only)
+// 7. RESTORE PROPERTY (UPDATED - Admin OR Owner)
 // ===========================================
 /**
  * POST /api/properties/:id/restore
- * Purpose: Restore a soft-deleted property (Admin only)
- * Access: Private (Admin only)
+ * Purpose: Restore a soft-deleted property
+ * Access: Private (Admin OR Owner of the property)
  */
 const restoreProperty = async (req, res, next) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only admins can restore properties'
-      });
-    }
-
     const property = await Property.findById(req.params.id);
 
     if (!property) {
       return res.status(404).json({
         success: false,
         message: 'Property not found'
+      });
+    }
+
+    // ✅ Allow admin OR owner to restore
+    const isAdmin = req.user.role === 'admin';
+    const isOwner = property.owner.toString() === req.user.id;
+
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to restore this property'
       });
     }
 
