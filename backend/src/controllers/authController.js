@@ -28,7 +28,7 @@ const generateToken = (id) => {
 };
 
 // ===========================================
-// 2. REGISTER - Create New User
+// 2. REGISTER - Create New User (NO TOKEN)
 // ===========================================
 
 /**
@@ -43,19 +43,15 @@ const generateToken = (id) => {
  *   role: "user" // optional, defaults to "user"
  * }
  * 
- * Flow:
- * 1. Check if user already exists (by email)
- * 2. If exists → return error
- * 3. If not → create new user (password auto-hashed by model)
- * 4. Generate JWT token
- * 5. Return token and user data
- * 
  * Response:
  * {
  *   success: true,
- *   token: "eyJhbGciOiJIUzI1NiIs...",
+ *   message: "User created successfully",
  *   data: { id, name, email, role }
  * }
+ * 
+ * Note: NO token is returned on registration.
+ *       User must login to get a token.
  */
 const register = async (req, res) => {
   try {
@@ -79,13 +75,10 @@ const register = async (req, res) => {
       role: role || 'user' // Default role is 'user'
     });
 
-    // Step 3: Generate JWT token
-    const token = generateToken(user._id);
-
-    // Step 4: Return success response
+    // ✅ Step 3: Return success WITHOUT token (for ALL roles)
     res.status(201).json({
       success: true,
-      token,
+      message: 'User created successfully',
       data: {
         id: user._id,
         name: user.name,
