@@ -10,19 +10,26 @@ const AdminDashboard = () => {
   const [error, setError] = useState(null);
   const [allProperties, setAllProperties] = useState([]);
 
+  // ✅ Load ALL properties including deleted ones
+  const loadAllProperties = async () => {
+    try {
+      const response = await api.get('/api/properties', { 
+        params: { includeDeleted: 'true' } 
+      });
+      console.log('📊 All properties (including deleted):', response.data.data);
+      setAllProperties(response.data.data || []);
+    } catch (err) {
+      console.error('Error loading all properties:', err);
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        // ✅ Fetch ALL properties (including deleted ones) for admin
-        const response = await api.get('/api/properties', { 
-          params: { includeDeleted: true } 
-        });
-        console.log('📊 All properties:', response.data.data);
-        setAllProperties(response.data.data || []);
-        // Also update the store
         await fetchProperties({});
+        await loadAllProperties();
       } catch (err) {
         console.error('❌ Error loading properties:', err);
         setError('Failed to load properties');
@@ -38,8 +45,8 @@ const AdminDashboard = () => {
     if (window.confirm('Are you sure you want to delete this property?')) {
       const result = await deleteProperty(id);
       if (result.success) {
-        // Refresh both lists
         await loadAllProperties();
+        await fetchProperties({});
       }
     }
   };
@@ -52,24 +59,12 @@ const AdminDashboard = () => {
         if (response.data.success) {
           alert('✅ Property restored successfully!');
           await loadAllProperties();
+          await fetchProperties({});
         }
       } catch (error) {
         console.error('Restore error:', error);
         alert('❌ Failed to restore property');
       }
-    }
-  };
-
-  // ✅ Function to load all properties
-  const loadAllProperties = async () => {
-    try {
-      const response = await api.get('/api/properties', { 
-        params: { includeDeleted: true } 
-      });
-      setAllProperties(response.data.data || []);
-      await fetchProperties({});
-    } catch (err) {
-      console.error('Error reloading properties:', err);
     }
   };
 
@@ -101,11 +96,17 @@ const AdminDashboard = () => {
   return (
     <Row>
       <Col md={12}>
-        {/* ✅ Active Properties Table */}
+        {/* ✅ Active Properties */}
         <Card className="mb-4">
           <Card.Header className="d-flex justify-content-between align-items-center">
             <span>✅ Active Properties</span>
-            <Badge bg="success">{activeProperties.length} active</Badge>
+            <div>
+              <Badge bg="success" className="me-2">{activeProperties.length} active</Badge>
+              {/* ✅ Admin can CREATE properties */}
+              <Link to="/properties/create">
+                <Button variant="primary" size="sm">+ Create New</Button>
+              </Link>
+            </div>
           </Card.Header>
           <Card.Body>
             {activeProperties.length === 0 ? (
@@ -118,7 +119,7 @@ const AdminDashboard = () => {
                     <th>Owner</th>
                     <th>Price</th>
                     <th>Status</th>
-                    <th>Action</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -137,13 +138,41 @@ const AdminDashboard = () => {
                         </Badge>
                       </td>
                       <td>
-                        <Button 
-                          variant="danger" 
-                          size="sm" 
-                          onClick={() => handleDelete(property._id)}
-                        >
-                          🗑️ Delete
-                        </Button>
+                        <div className="d-flex gap-2 flex-wrap">
+                          {/* ✅ Admin can EDIT any property (draft only) */}
+                          {property.status === 'draft' && (
+                            <Link to={`/properties/edit/${property._id}`}>
+                              <Button variant="warning" size="sm">✏️ Edit</Button>
+                            </Link>
+                          )}
+                          {/* ✅ Admin can PUBLISH any draft property */}
+                          {property.status === 'draft' && (
+                            <Button 
+                              variant="success" 
+                              size="sm" 
+                              onClick={async () => {
+                                try {
+                                  await api.post(`/api/properties/${property._id}/publish`);
+                                  await loadAllProperties();
+                                  await fetchProperties({});
+                                } catch (err) {
+                                  console.error('Publish error:', err);
+                                  alert('❌ Failed to publish property');
+                                }
+                              }}
+                            >
+                              📤 Publish
+                            </Button>
+                          )}
+                          {/* ✅ Admin can DELETE any property */}
+                          <Button 
+                            variant="danger" 
+                            size="sm" 
+                            onClick={() => handleDelete(property._id)}
+                          >
+                            🗑️ Delete
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -153,8 +182,8 @@ const AdminDashboard = () => {
           </Card.Body>
         </Card>
 
-        {/* ✅ Deleted Properties Table (with Restore button) */}
-        {deletedProperties.length > 0 && (
+        {/* ✅ Deleted Properties with Restore Button */}
+        {deletedProperties.length > 0 ? (
           <Card className="border-danger">
             <Card.Header className="bg-danger text-white d-flex justify-content-between align-items-center">
               <span>🗑️ Deleted Properties</span>
@@ -199,16 +228,13 @@ const AdminDashboard = () => {
               </Table>
             </Card.Body>
           </Card>
-        )}
-
-        {/* ✅ If no deleted properties, show message */}
-        {deletedProperties.length === 0 && (
+        ) : (
           <Card className="border-secondary">
             <Card.Header className="bg-secondary text-white">
               <span>🗑️ Deleted Properties</span>
             </Card.Header>
             <Card.Body>
-              <p className="text-muted text-center mb-0">No deleted properties. Deleted properties will appear here.</p>
+              <p className="text-muted text-center mb-0">No deleted properties.</p>
             </Card.Body>
           </Card>
         )}
